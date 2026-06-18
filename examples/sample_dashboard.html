@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Growth Diagnostics</title>
+<style>
+:root{
+  --bg:#FFFFFF;--card:#F7F8FA;--line:#E6E8EC;--text:#1F2430;--text-2:#5B6472;
+  --brand:#3B82F6;--good:#10B981;--warn:#F59E0B;--bad:#EF4444;--radius:12px;
+  --shadow:0 1px 2px rgba(31,36,48,.04),0 2px 8px rgba(31,36,48,.04);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Source Han Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.5;font-size:14px}
+a{color:var(--brand);text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:8px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--text-2);font-size:13px}
+.muted{color:var(--text-2)}
+section{margin-top:30px}
+section>h2{font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+section>h2 .hint{font-weight:400;font-size:12px;color:var(--text-2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.kpi .label{color:var(--text-2);font-size:12px}
+.kpi .val{font-size:22px;font-weight:650;margin:2px 0 4px}
+.kpi .delta{font-size:12px;font-weight:600}
+.kpi .note{font-size:11px;color:var(--text-2);margin-top:6px}
+.up{color:var(--good)}.down{color:var(--bad)}.flat{color:var(--text-2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.b-high{background:#FEE2E2;color:#B91C1C}
+.b-medium{background:#FEF3C7;color:#B45309}
+.b-low{background:#E0F2FE;color:#0369A1}
+.b-good{background:#D1FAE5;color:#047857}
+.health{display:flex;align-items:center;gap:16px}
+.ring{width:84px;height:84px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center}
+.ring .inner{width:64px;height:64px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:700;font-size:20px}
+ul.clean{margin:6px 0 0;padding-left:18px}ul.clean li{margin:3px 0}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.anom{border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:10px;overflow:hidden}
+.anom .head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer}
+.anom .head .metric{font-weight:600}
+.anom .head .slice{color:var(--text-2);font-size:12px}
+.anom .head .chev{margin-left:auto;color:var(--text-2);transition:transform .15s}
+.anom.open .chev{transform:rotate(90deg)}
+.anom .body{padding:0 14px 14px;border-top:1px solid var(--line)}     /* visible by default (no-JS safe) */
+.anom.collapsed .body{display:none}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:4px 10px;font-size:13px;margin-top:10px}
+.kv .k{color:var(--text-2)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer;color:var(--text-2)}
+.chip.active{background:var(--brand);border-color:var(--brand);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--text-2);font-weight:600;font-size:12px}
+tr.parent{cursor:pointer}
+tr.parent .key::before{content:"▾ ";color:var(--text-2)}
+tr.parent.closed .key::before{content:"▸ "}
+tr.child td:first-child{padding-left:26px;color:var(--text-2)}
+tr.child.hide{display:none}
+.chartwrap{width:100%;overflow-x:auto}
+svg.chart{display:block;max-width:100%;height:auto}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.rec{background:#fff;border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.rec .meta{font-size:11px;color:var(--text-2);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.whatmeans{font-size:12px;color:var(--text-2);margin-top:8px;padding:8px 10px;background:#fff;border:1px dashed var(--line);border-radius:8px}
+details.trace summary{cursor:pointer;color:var(--brand);font-size:12px;margin-top:8px}
+details.trace code{display:block;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:6px;font-size:12px;white-space:pre-wrap}
+.tools{display:flex;gap:8px}
+button.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--text)}
+.appendix dt{font-weight:600;margin-top:8px}
+footer{margin-top:40px;color:var(--text-2);font-size:12px;text-align:center}
+@media(max-width:760px){.cols-2,.cols-3{grid-template-columns:1fr}}
+@media print{.chip,button.btn{display:none}.anom.collapsed .body{display:block}tr.child.hide{display:table-row}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+      <div><h1>Demo App — Mobile Growth Diagnostics (sample / mock data)</h1><div class="sub">2026-06-03 → 2026-06-16  ·  vs previous 14d</div></div>
+      <div class="tools"><button class="btn" id="btn-export">Export / Print</button></div>
+    </header>
+<section><h2>Executive Summary</h2><div class="card"><div class="grid cols-2" style="align-items:start">
+          <div class="health"><div class="ring" style="background:conic-gradient(var(--brand) 227deg, var(--line) 0)"><div class="inner">63</div></div>
+            <div><div class="muted">Health</div><ul class="clean"><li>Blended ROAS sits at ~20% (D7) but is sliding (-16% within the window), dragged by two clearly identifiable sources.</li><li>BR/Meta had a same-day installs+sessions cliff with an attribution-loss spike — almost certainly a tracking/delivery break, not real demand.</li><li>ID/SubPubX shows a textbook fraud pattern: 6× install spike, ~0 retention, ~0 revenue — pure spend leak.</li><li>US/Google (iOS) is a persistent low-ROAS drag (7% vs 15% floor) even at D30.</li><li>US/Meta D7 retention broke ~36% in the last two days — worth a product/quality check.</li></ul></div></div>
+          <div class="grid cols-2">
+            <div><div class="muted">Top anomalies</div><ul class="clean"><li>BR/Meta installs/sessions cliff (-66%) + attribution loss</li><li>ID/SubPubX invalid traffic (ROAS 0%, retention≈0)</li><li>US/Google iOS ROAS 7% below 15% floor</li></ul></div>
+            <div><div class="muted">Top actions</div><ul class="clean"><li>Pause/quarantine ID/SubPubX and request a network review</li><li>Investigate BR/Meta tracking break before judging performance</li><li>Reallocate US/Google iOS budget toward US/Meta (above floor)</li></ul></div>
+          </div></div></div></section>
+<section><h2>KPI Overview</h2><div class="grid kpis"><div class="card kpi"><div class="label">Installs</div>
+              <div class="val">269,247</div>
+              <div class="delta up">+3%</div><svg class="spark" width="120" height="28" viewBox="0 0 120 28"><polyline fill="none" stroke="#10B981" stroke-width="2" points="0.0,20.6 9.2,15.7 18.5,23.5 27.7,20.5 36.9,16.6 46.2,21.0 55.4,21.6 64.6,21.2 73.8,19.4 83.1,12.9 92.3,16.7 101.5,2.0 110.8,9.7 120.0,26.0"/></svg><div class="note">What this means: volume is roughly flat; the headline hides a BR/Meta cliff and an ID fraud spike.</div></div><div class="card kpi"><div class="label">Spend</div>
+              <div class="val">$331,408</div>
+              <div class="delta down">-1%</div><svg class="spark" width="120" height="28" viewBox="0 0 120 28"><polyline fill="none" stroke="#F59E0B" stroke-width="2" points="0.0,24.9 9.2,2.8 18.5,12.1 27.7,6.0 36.9,2.0 46.2,18.8 55.4,17.8 64.6,12.0 73.8,3.3 83.1,9.4 92.3,26.0 101.5,5.4 110.8,16.5 120.0,16.3"/></svg><div class="note">What this means: some of this spend is going to zero-ROAS traffic.</div></div><div class="card kpi"><div class="label">Revenue (All)</div>
+              <div class="val">$64,962</div>
+              <div class="delta down">-11%</div><svg class="spark" width="120" height="28" viewBox="0 0 120 28"><polyline fill="none" stroke="#F59E0B" stroke-width="2" points="0.0,10.9 9.2,5.8 18.5,15.5 27.7,9.4 36.9,11.1 46.2,2.0 55.4,15.6 64.6,11.5 73.8,17.6 83.1,20.2 92.3,9.6 101.5,19.7 110.8,16.6 120.0,26.0"/></svg></div><div class="card kpi"><div class="label">ROAS D7</div>
+              <div class="val">20%</div>
+              <div class="delta down">-16%</div><svg class="spark" width="120" height="28" viewBox="0 0 120 28"><polyline fill="none" stroke="#EF4444" stroke-width="2" points="0.0,11.5 9.2,8.2 18.5,15.2 27.7,10.0 36.9,13.2 46.2,2.0 55.4,16.0 64.6,11.9 73.8,18.9 83.1,23.5 92.3,11.6 101.5,26.0 110.8,21.0 120.0,25.7"/></svg><div class="note">What this means: below a healthy band and trending down.</div></div><div class="card kpi"><div class="label">Retention D7</div>
+              <div class="val">13%</div>
+              <div class="delta down">-14%</div><svg class="spark" width="120" height="28" viewBox="0 0 120 28"><polyline fill="none" stroke="#F59E0B" stroke-width="2" points="0.0,14.2 9.2,11.2 18.5,17.1 27.7,2.0 36.9,10.1 46.2,12.1 55.4,3.7 64.6,19.0 73.8,19.6 83.1,24.8 92.3,16.3 101.5,24.0 110.8,15.6 120.0,26.0"/></svg><div class="note">What this means: US/Meta break is pulling the blended number down.</div></div><div class="card kpi"><div class="label">eCPI</div>
+              <div class="val">$1.231</div>
+              <div class="delta up">+8%</div><svg class="spark" width="120" height="28" viewBox="0 0 120 28"><polyline fill="none" stroke="#F59E0B" stroke-width="2" points="0.0,23.2 9.2,3.7 18.5,8.5 27.7,4.0 36.9,2.4 46.2,16.8 55.4,15.5 64.6,9.7 73.8,2.0 83.1,11.7 92.3,26.0 101.5,13.4 110.8,20.0 120.0,11.5"/></svg></div></div></section>
+<section><h2>Anomaly Center <span class="hint">13</span></h2><div id="anom-center"><div class="filters"><span class="chip active" data-group="sev" data-val="all">All</span><span class="chip" data-group="sev" data-val="high">High</span><span class="chip" data-group="sev" data-val="medium">Medium</span><span class="chip" data-group="sev" data-val="low">Low</span><span class="chip active" data-group="scn" data-val="all">All</span><span class="chip" data-group="scn" data-val="data_quality">data_quality</span><span class="chip" data-group="scn" data-val="ua_performance">ua_performance</span><span class="chip" data-group="scn" data-val="fraud">fraud</span></div><div class="anom" data-sev="high" data-scn="data_quality">
+              <div class="head"><span class="badge b-high">High</span>
+                <span class="metric">sessions</span>
+                <span class="slice">platform=ios × country=BR × network=Meta</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: BR/Meta sessions fell ~66% on the last day in lockstep with installs — looks like a delivery or tracking break, not a demand shift.</div><div class="kv">
+                <span class="k">Change</span><span>-66% vs trailing mean</span>
+                <span class="k">Baseline</span><span>13209</span>
+                <span class="k">Likely cause</span><span>install_cliff</span>
+                <span class="k">Recommendation</span><span>investigate spend pause / tracking / attribution loss</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=sessions; dims=[&#x27;date&#x27;, &#x27;platform&#x27;, &#x27;country&#x27;, &#x27;network&#x27;]; cliff vs trailing mean</code></details>
+              </div></div><div class="anom" data-sev="high" data-scn="ua_performance">
+              <div class="head"><span class="badge b-high">High</span>
+                <span class="metric">roas_7d</span>
+                <span class="slice">platform=android × country=ID × network=SubPubX</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: ID/SubPubX is buying installs at ROAS 0% — pure spend leak; revenue never materializes.</div><div class="kv">
+                <span class="k">Change</span><span>0% &lt; floor 15% (recurring)</span>
+                <span class="k">Baseline</span><span>floor 15%</span>
+                <span class="k">Likely cause</span><span>low_traffic_quality_or_monetization_lag</span>
+                <span class="k">Recommendation</span><span>reduce/pause or investigate monetization</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=roas_7d; below floor</code></details>
+              </div></div><div class="anom" data-sev="high" data-scn="ua_performance">
+              <div class="head"><span class="badge b-high">High</span>
+                <span class="metric">roas_30d</span>
+                <span class="slice">platform=android × country=ID × network=SubPubX</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: Same SubPub at the 30-day window: still zero return, confirming it&#x27;s not a maturation lag.</div><div class="kv">
+                <span class="k">Change</span><span>0% &lt; floor 30% (recurring)</span>
+                <span class="k">Baseline</span><span>floor 30%</span>
+                <span class="k">Likely cause</span><span>low_traffic_quality_or_monetization_lag</span>
+                <span class="k">Recommendation</span><span>reduce/pause or investigate monetization</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=roas_30d; below floor</code></details>
+              </div></div><div class="anom" data-sev="high" data-scn="fraud">
+              <div class="head"><span class="badge b-high">High</span>
+                <span class="metric">installs</span>
+                <span class="slice">platform=android × country=ID × network=SubPubX</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: Classic invalid-traffic fingerprint: install spike with ~0 D1 retention and ~0 revenue.</div><div class="kv">
+                <span class="k">Change</span><span>300 installs, D1 ret≈0, rev≈0 (recurring)</span>
+                <span class="k">Baseline</span><span>expected &gt;0 retention/revenue</span>
+                <span class="k">Likely cause</span><span>invalid_traffic</span>
+                <span class="k">Recommendation</span><span>block sub-publisher; request network review</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>installs spike with ~0 retention &amp; revenue</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="data_quality">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">installs</span>
+                <span class="slice">platform=ios × country=BR × network=Meta</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: The install drop mirrors the session drop, so it&#x27;s a data/delivery issue rather than worse conversion.</div><div class="kv">
+                <span class="k">Change</span><span>-52% vs trailing mean</span>
+                <span class="k">Baseline</span><span>4269</span>
+                <span class="k">Likely cause</span><span>install_cliff</span>
+                <span class="k">Recommendation</span><span>investigate spend pause / tracking / attribution loss</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=installs; dims=[&#x27;date&#x27;, &#x27;platform&#x27;, &#x27;country&#x27;, &#x27;network&#x27;]; cliff vs trailing mean</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="data_quality">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">network_installs_diff_signed</span>
+                <span class="slice">platform=ios × country=BR × network=Meta</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: Attribution-vs-network gap blew past 2× its norm the same day BR/Meta dropped — attribution loss is the likely culprit.</div><div class="kv">
+                <span class="k">Change</span><span>1631 (&gt;2× baseline)</span>
+                <span class="k">Baseline</span><span>74</span>
+                <span class="k">Likely cause</span><span>attribution_loss_or_overreporting</span>
+                <span class="k">Recommendation</span><span>reconcile attribution vs network</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=network_installs_diff_signed; abs &gt; 2× trailing mean</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="data_quality">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">network_installs_diff_signed</span>
+                <span class="slice">platform=android × country=ID × network=SubPubX</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: SubPub&#x27;s network-reported installs exceed Adjust&#x27;s — over-reporting consistent with the fraud signal above.</div><div class="kv">
+                <span class="k">Change</span><span>25 (&gt;2× baseline)</span>
+                <span class="k">Baseline</span><span>7</span>
+                <span class="k">Likely cause</span><span>attribution_loss_or_overreporting</span>
+                <span class="k">Recommendation</span><span>reconcile attribution vs network</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=network_installs_diff_signed; abs &gt; 2× trailing mean</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="data_quality">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">skad_conversion_value_null_rate</span>
+                <span class="slice">platform=ios × country=BR × network=Google Ads</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: BR/Google iOS CV null rate jumped to 34% — SKAN conversion-value config or postback parsing needs a look.</div><div class="kv">
+                <span class="k">Change</span><span>34% (recurring)</span>
+                <span class="k">Baseline</span><span>max 20%</span>
+                <span class="k">Likely cause</span><span>skan_config</span>
+                <span class="k">Recommendation</span><span>audit conversion-value config / postback parsing</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=skad_conversion_value_null_rate; ratio threshold</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="ua_performance">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">ecpi</span>
+                <span class="slice">platform=android × country=US × network=Meta</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: US/Meta eCPI rose +33% — bid pressure or creative fatigue; watch before it drags ROAS.</div><div class="kv">
+                <span class="k">Change</span><span>+33%</span>
+                <span class="k">Baseline</span><span>1.17</span>
+                <span class="k">Likely cause</span><span>bid_pressure_or_creative_fatigue</span>
+                <span class="k">Recommendation</span><span>review bids / targeting / creative refresh</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=ecpi; PoP rise</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="ua_performance">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">roas_7d</span>
+                <span class="slice">platform=ios × country=US × network=Google Ads</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: US/Google iOS is a low-ROAS drag at 7% vs a 15% floor — prime budget-reallocation candidate.</div><div class="kv">
+                <span class="k">Change</span><span>7% &lt; floor 15% (recurring)</span>
+                <span class="k">Baseline</span><span>floor 15%</span>
+                <span class="k">Likely cause</span><span>low_traffic_quality_or_monetization_lag</span>
+                <span class="k">Recommendation</span><span>reduce/pause or investigate monetization</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=roas_7d; below floor</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="ua_performance">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">roas_30d</span>
+                <span class="slice">platform=ios × country=US × network=Google Ads</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: Even at D30 US/Google stays under floor, so it won&#x27;t &#x27;catch up&#x27;.</div><div class="kv">
+                <span class="k">Change</span><span>12% &lt; floor 30% (recurring)</span>
+                <span class="k">Baseline</span><span>floor 30%</span>
+                <span class="k">Likely cause</span><span>low_traffic_quality_or_monetization_lag</span>
+                <span class="k">Recommendation</span><span>reduce/pause or investigate monetization</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=roas_30d; below floor</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="ua_performance">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">retention_rate_7d</span>
+                <span class="slice">platform=android × country=US × network=Meta</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: US/Meta D7 retention broke ~36% in the last two days — possible low-quality mix-in or a build regression.</div><div class="kv">
+                <span class="k">Change</span><span>-36%</span>
+                <span class="k">Baseline</span><span>15.9%</span>
+                <span class="k">Likely cause</span><span>low_quality_mix_or_product_regression</span>
+                <span class="k">Recommendation</span><span>segment by network/country; check product changes</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=retention_rate_7d; PoP drop</code></details>
+              </div></div><div class="anom" data-sev="medium" data-scn="ua_performance">
+              <div class="head"><span class="badge b-medium">Medium</span>
+                <span class="metric">retention_rate_30d</span>
+                <span class="slice">platform=android × country=US × network=Meta</span><span class="chev">▸</span></div>
+              <div class="body"><div class="whatmeans">What this means: The D30 retention echo confirms the D7 break isn&#x27;t just noise.</div><div class="kv">
+                <span class="k">Change</span><span>-36%</span>
+                <span class="k">Baseline</span><span>9.6%</span>
+                <span class="k">Likely cause</span><span>low_quality_mix_or_product_regression</span>
+                <span class="k">Recommendation</span><span>segment by network/country; check product changes</span></div>
+                <details class="trace"><summary>Traceable query</summary><code>metric=retention_rate_30d; PoP drop</code></details>
+              </div></div></div></section>
+<section><h2>Trends</h2><div class="grid cols-2"><div class="card"><div style="font-weight:600;margin-bottom:6px">Installs (daily)</div><div class="chartwrap"><svg class="chart" width="520" height="240" viewBox="0 0 520 240" preserveAspectRatio="xMidYMid meet"><line x1="48" y1="212.0" x2="508" y2="212.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="162.0" x2="508" y2="162.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="112.0" x2="508" y2="112.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="62.0" x2="508" y2="62.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="12.0" x2="508" y2="12.0" stroke="#E6E8EC" stroke-width="1"/><text x="42" y="215.0" text-anchor="end" font-size="10" fill="#5B6472">18,133</text><text x="42" y="165.0" text-anchor="end" font-size="10" fill="#5B6472">18,924</text><text x="42" y="115.0" text-anchor="end" font-size="10" fill="#5B6472">19,716</text><text x="42" y="65.0" text-anchor="end" font-size="10" fill="#5B6472">20,507</text><text x="42" y="15.0" text-anchor="end" font-size="10" fill="#5B6472">21,298</text><text x="48.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">2026-06-03</text><text x="295.7" y="232" text-anchor="middle" font-size="10" fill="#5B6472">2026-06-10</text><text x="508.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">2026-06-16</text><polyline fill="none" stroke="#3B82F6" stroke-width="2" points="48.0,167.3 83.4,126.4 118.8,190.9 154.2,165.9 189.5,133.3 224.9,170.4 260.3,175.2 295.7,171.9 331.1,156.8 366.5,103.0 401.8,134.8 437.2,12.0 472.6,75.9 508.0,212.0"/></svg></div><div class="whatmeans">What this means: the last-day dip is BR/Meta; the late-window bump is ID/SubPubX volume, not healthy growth.</div></div><div class="card"><div style="font-weight:600;margin-bottom:6px">ROAS D7 (blended)</div><div class="chartwrap"><svg class="chart" width="520" height="240" viewBox="0 0 520 240" preserveAspectRatio="xMidYMid meet"><line x1="48" y1="212.0" x2="508" y2="212.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="162.0" x2="508" y2="162.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="112.0" x2="508" y2="112.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="62.0" x2="508" y2="62.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="12.0" x2="508" y2="12.0" stroke="#E6E8EC" stroke-width="1"/><text x="42" y="215.0" text-anchor="end" font-size="10" fill="#5B6472">19.2%</text><text x="42" y="165.0" text-anchor="end" font-size="10" fill="#5B6472">22%</text><text x="42" y="115.0" text-anchor="end" font-size="10" fill="#5B6472">24.8%</text><text x="42" y="65.0" text-anchor="end" font-size="10" fill="#5B6472">27.6%</text><text x="42" y="15.0" text-anchor="end" font-size="10" fill="#5B6472">30.4%</text><text x="48.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">2026-06-03</text><text x="295.7" y="232" text-anchor="middle" font-size="10" fill="#5B6472">2026-06-10</text><text x="508.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">2026-06-16</text><polyline fill="none" stroke="#3B82F6" stroke-width="2" points="48.0,90.8 83.4,63.3 118.8,122.0 154.2,78.7 189.5,105.5 224.9,12.0 260.3,128.9 295.7,94.2 331.1,153.1 366.5,191.4 401.8,92.2 437.2,212.0 472.6,170.1 508.0,209.5"/></svg></div><div class="whatmeans">What this means: the downward drift tracks the growing share of low-ROAS and fraudulent traffic.</div></div></div></section>
+<section><h2>Cross-dimension Breakdown <span class="hint">country × network</span></h2><div class="card"><table><thead><tr><th>country</th><th>installs</th><th>cost</th><th>roas_7d</th></tr></thead><tbody><tr class="parent" data-key="p0"><td class="key">US</td><td>95,146</td><td>118,411</td><td>0.15</td></tr><tr class="child" data-parent="p0"><td>Meta</td><td>53,562</td><td>64,278</td><td>0.23</td></tr><tr class="child" data-parent="p0"><td>Google Ads</td><td>41,584</td><td>54,133</td><td>0.07</td></tr><tr class="parent" data-key="p1"><td class="key">BR</td><td>93,127</td><td>110,906</td><td>0.24</td></tr><tr class="child" data-parent="p1"><td>Meta</td><td>57,536</td><td>68,865</td><td>0.23</td></tr><tr class="child" data-parent="p1"><td>Google Ads</td><td>35,591</td><td>42,041</td><td>0.24</td></tr><tr class="parent" data-key="p2"><td class="key">IN</td><td>72,274</td><td>91,715</td><td>0.22</td></tr><tr class="child" data-parent="p2"><td>Unity Ads</td><td>72,274</td><td>91,715</td><td>0.22</td></tr><tr class="parent" data-key="p3"><td class="key">ID</td><td>8,700</td><td>10,378</td><td>0</td></tr><tr class="child" data-parent="p3"><td>SubPubX</td><td>8,700</td><td>10,378</td><td>0</td></tr></tbody></table><div class="whatmeans">What this means: Click a country to expand its networks. ID is almost entirely SubPubX at 0% ROAS; US ROAS is split between a healthy Meta and a sub-floor Google.</div></div></section>
+<section><h2>Retention &amp; LTV</h2><div class="grid cols-2"><div class="card"><div style="font-weight:600;margin-bottom:6px">Retention</div><div class="chartwrap"><svg class="chart" width="520" height="240" viewBox="0 0 520 240" preserveAspectRatio="xMidYMid meet"><line x1="48" y1="212.0" x2="508" y2="212.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="162.0" x2="508" y2="162.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="112.0" x2="508" y2="112.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="62.0" x2="508" y2="62.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="12.0" x2="508" y2="12.0" stroke="#E6E8EC" stroke-width="1"/><text x="42" y="215.0" text-anchor="end" font-size="10" fill="#5B6472">0%</text><text x="42" y="165.0" text-anchor="end" font-size="10" fill="#5B6472">25%</text><text x="42" y="115.0" text-anchor="end" font-size="10" fill="#5B6472">50%</text><text x="42" y="65.0" text-anchor="end" font-size="10" fill="#5B6472">75%</text><text x="42" y="15.0" text-anchor="end" font-size="10" fill="#5B6472">100%</text><text x="48.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">0d</text><text x="354.7" y="232" text-anchor="middle" font-size="10" fill="#5B6472">7d</text><text x="508.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">30d</text><polyline fill="none" stroke="#3B82F6" stroke-width="2" points="48.0,12.0 201.3,136.0 354.7,178.0 508.0,192.0"/><polyline fill="none" stroke="#10B981" stroke-width="2" points="48.0,12.0 201.3,140.0 354.7,190.0 508.0,200.0"/><polyline fill="none" stroke="#F59E0B" stroke-width="2" points="48.0,12.0 201.3,211.6 354.7,212.0 508.0,212.0"/></svg></div><div class="legend"><span><i style="background:#3B82F6"></i>BR/Meta</span><span><i style="background:#10B981"></i>US/Meta</span><span><i style="background:#F59E0B"></i>ID/SubPubX</span></div></div><div class="card"><div style="font-weight:600;margin-bottom:6px">LTV</div><div class="chartwrap"><svg class="chart" width="520" height="240" viewBox="0 0 520 240" preserveAspectRatio="xMidYMid meet"><line x1="48" y1="212.0" x2="508" y2="212.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="162.0" x2="508" y2="162.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="112.0" x2="508" y2="112.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="62.0" x2="508" y2="62.0" stroke="#E6E8EC" stroke-width="1"/><line x1="48" y1="12.0" x2="508" y2="12.0" stroke="#E6E8EC" stroke-width="1"/><text x="42" y="215.0" text-anchor="end" font-size="10" fill="#5B6472">0.00</text><text x="42" y="165.0" text-anchor="end" font-size="10" fill="#5B6472">0.13</text><text x="42" y="115.0" text-anchor="end" font-size="10" fill="#5B6472">0.26</text><text x="42" y="65.0" text-anchor="end" font-size="10" fill="#5B6472">0.39</text><text x="42" y="15.0" text-anchor="end" font-size="10" fill="#5B6472">0.52</text><text x="48.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">0d</text><text x="354.7" y="232" text-anchor="middle" font-size="10" fill="#5B6472">7d</text><text x="508.0" y="232" text-anchor="middle" font-size="10" fill="#5B6472">30d</text><polyline fill="none" stroke="#3B82F6" stroke-width="2" points="48.0,212.0 201.3,165.8 354.7,96.6 508.0,12.0"/><polyline fill="none" stroke="#10B981" stroke-width="2" points="48.0,212.0 201.3,200.5 354.7,185.1 508.0,165.8"/><polyline fill="none" stroke="#F59E0B" stroke-width="2" points="48.0,212.0 201.3,212.0 354.7,212.0 508.0,212.0"/></svg></div><div class="legend"><span><i style="background:#3B82F6"></i>BR/Meta</span><span><i style="background:#10B981"></i>US/Google</span><span><i style="background:#F59E0B"></i>ID/SubPubX</span></div></div></div><div class="whatmeans">What this means: SubPubX flatlines immediately — the cohort curve alone is enough to disqualify it.</div></section>
+<section><h2>UA Recommendations</h2><div class="rec"><div>Pause ID/SubPubX and request a sub-publisher review from the network.</div><div class="meta"><span>basis: <b>installs, retention_rate_1d, revenue</b></span><span>impact: <b>recover ~5% of wasted spend</b></span><span>confidence: <b>high</b></span><span>priority: <span class="badge b-high">High</span></span></div></div><div class="rec"><div>Hold judgment on BR/Meta performance until the tracking/attribution break is fixed; re-pull once resolved.</div><div class="meta"><span>basis: <b>sessions, network_installs_diff_signed</b></span><span>impact: <b>avoid a false pause of a healthy source</b></span><span>confidence: <b>medium</b></span><span>priority: <span class="badge b-high">High</span></span></div></div><div class="rec"><div>Shift US/Google iOS budget toward US/Meta, which clears the ROAS floor.</div><div class="meta"><span>basis: <b>roas_7d, ecpi</b></span><span>impact: <b>+6–9% blended ROAS</b></span><span>confidence: <b>medium</b></span><span>priority: <span class="badge b-medium">Medium</span></span></div></div><div class="rec"><div>Audit BR/Google iOS SKAN conversion-value config (null rate 34%).</div><div class="meta"><span>basis: <b>skad_conversion_value_null_rate</b></span><span>impact: <b>restore SKAN measurement accuracy</b></span><span>confidence: <b>medium</b></span><span>priority: <span class="badge b-medium">Medium</span></span></div></div></section>
+<section><h2>Data Validation</h2><div class="card"><div class="grid cols-3">
+      <div><div class="muted">Date range</div><b>2026-06-03 → 2026-06-16</b>
+        <div class="muted">Rows: 84</div></div>
+      <div><div class="muted">Core totals</div><div><span class="muted">installs</span> <b>269,247</b></div><div><span class="muted">cost</span> <b>331,409.34</b></div><div><span class="muted">revenue</span> <b>51,969.84</b></div><div><span class="muted">all_revenue</span> <b>64,962.33</b></div><div><span class="muted">sessions</span> <b>801,865</b></div></div>
+      <div><div class="muted">Gaps & null warnings</div><ul class='clean'><li>invalid_payloads: 42/84 rows null</li><li>skad_conversion_value_null_rate: 42/84 rows null</li><li>skad_installs: 42/84 rows null</li></ul></div></div>
+      <div style="margin-top:14px"><div class="muted" style="margin-bottom:6px">Sample rows</div><table><thead><tr><th>date</th><th>platform</th><th>country</th><th>network</th><th>all_revenue</th><th>arpdau</th><th>click_conversion_rate</th><th>cost</th><th>ctr</th><th>ecpi</th></tr></thead><tbody><tr><td>2026-06-03</td><td>ios</td><td>BR</td><td>Meta</td><td>1,372.34</td><td>0.02</td><td>0.09</td><td>3,757.86</td><td>0.02</td><td>0.92</td></tr><tr><td>2026-06-03</td><td>ios</td><td>BR</td><td>Google Ads</td><td>919.52</td><td>0.02</td><td>0.09</td><td>2,768.97</td><td>0.02</td><td>1.14</td></tr><tr><td>2026-06-03</td><td>android</td><td>US</td><td>Meta</td><td>862.34</td><td>0.01</td><td>0.09</td><td>4,145.27</td><td>0.03</td><td>1.03</td></tr><tr><td>2026-06-03</td><td>ios</td><td>US</td><td>Google Ads</td><td>218.73</td><td>0</td><td>0.08</td><td>2,570.18</td><td>0.02</td><td>0.85</td></tr><tr><td>2026-06-03</td><td>android</td><td>IN</td><td>Unity Ads</td><td>1,526.28</td><td>0.02</td><td>0.06</td><td>6,281.43</td><td>0.02</td><td>1.26</td></tr><tr><td>2026-06-03</td><td>android</td><td>ID</td><td>SubPubX</td><td>0</td><td>0</td><td>0.1</td><td>357.35</td><td>0.25</td><td>1.19</td></tr></tbody></table></div></div></section>
+<section><h2>Appendix</h2><div class="card appendix"><dl><dt>Run parameters</dt><dd></dd><dt>window</dt><dd>2026-06-03..2026-06-16</dd><dt>compare</dt><dd>previous period</dd><dt>scenarios</dt><dd>data_quality, ua_performance, reconciliation, fraud</dd><dt>dimensions</dt><dd>country, network, platform</dd><dt>roas_basis</dt><dd>All</dd><dt>note</dt><dd>This is a MOCK preview built from synthetic data to show layout &amp; interactions.</dd><dt>Degraded / skipped metrics</dt><dd>skan_revenue_est_roas (requires Adjust TAM enablement)</dd><dt>Notes</dt><dd>ROAS/ROI shown as % but returned by the API as decimals. No tokens or PII are stored in this file.</dd></dl></div></section>
+<footer>Generated by mobile-growth-diagnostics · aggregate, read-only · @ 2026-06-17T10:37:40.881055+00:00 · ROAS/ROI shown as % (API returns decimals)</footer>
+</div>
+<script>
+/* Progressive enhancement only. The page is fully rendered as static HTML, so
+   it shows everything even if this script never runs (sandbox/CSP/offline). */
+(function(){
+  try{
+    // Print button
+    var pb=document.getElementById("btn-export");
+    if(pb) pb.addEventListener("click",function(){window.print();});
+
+    // Anomalies: collapse all on load, toggle on click.
+    document.querySelectorAll(".anom").forEach(function(a){
+      a.classList.add("collapsed");
+      var h=a.querySelector(".head");
+      if(h) h.addEventListener("click",function(){a.classList.toggle("collapsed");});
+    });
+
+    // Anomaly filters (severity + scenario chips).
+    var center=document.getElementById("anom-center");
+    if(center){
+      var state={sev:"all",scn:"all"};
+      function apply(){
+        center.querySelectorAll(".anom").forEach(function(n){
+          var okS=state.sev==="all"||n.getAttribute("data-sev")===state.sev;
+          var okC=state.scn==="all"||n.getAttribute("data-scn")===state.scn;
+          n.style.display=(okS&&okC)?"":"none";
+        });
+      }
+      center.querySelectorAll(".chip").forEach(function(c){
+        c.addEventListener("click",function(){
+          var grp=c.getAttribute("data-group"), val=c.getAttribute("data-val");
+          state[grp]=val;
+          center.querySelectorAll('.chip[data-group="'+grp+'"]').forEach(function(x){x.classList.remove("active");});
+          c.classList.add("active");
+          apply();
+        });
+      });
+    }
+
+    // Breakdown drill-down: collapse children on load, toggle per parent.
+    document.querySelectorAll("tr.parent").forEach(function(p){
+      var id=p.getAttribute("data-key");
+      var kids=document.querySelectorAll('tr.child[data-parent="'+id+'"]');
+      p.classList.add("closed"); kids.forEach(function(k){k.classList.add("hide");});
+      p.addEventListener("click",function(){
+        var closed=p.classList.toggle("closed");
+        kids.forEach(function(k){k.classList.toggle("hide",closed);});
+      });
+    });
+  }catch(e){/* enhancement is optional; static content already shows */}
+})();
+</script>
+</body>
+</html>

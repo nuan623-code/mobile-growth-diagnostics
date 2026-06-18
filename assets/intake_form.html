@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Growth Diagnostics — Configuration</title>
+<style>
+:root{--bg:#FFFFFF;--card:#F7F8FA;--line:#E6E8EC;--text:#1F2430;--text-2:#5B6472;
+  --brand:#3B82F6;--good:#10B981;--warn:#F59E0B;--bad:#EF4444;--radius:12px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Source Han Sans SC","PingFang SC","Microsoft YaHei",sans-serif;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:26px 20px 60px}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--text-2);font-size:13px;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 4px}
+.card .desc{color:var(--text-2);font-size:12px;margin-bottom:12px}
+.row{margin-bottom:14px}
+label{display:block;font-weight:600;margin-bottom:5px;font-size:13px}
+label .opt{font-weight:400;color:var(--text-2);font-size:11px}
+input[type=text],input[type=password],input[type=date],select,textarea{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--text)}
+textarea{min-height:60px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.checks label{display:flex;align-items:center;gap:6px;font-weight:400;border:1px solid var(--line);background:#fff;
+  border-radius:999px;padding:5px 12px;cursor:pointer;margin:0}
+.checks input{accent-color:var(--brand)}
+details{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);padding:0 16px;margin-bottom:16px}
+details>summary{cursor:pointer;font-weight:600;padding:14px 0;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details[open]{padding-bottom:16px}
+.hint{font-size:11px;color:var(--text-2);margin-top:4px}
+.actions{display:flex;gap:10px;margin-top:8px}
+button{border:none;border-radius:9px;padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
+.primary{background:var(--brand);color:#fff}
+.ghost{background:#fff;border:1px solid var(--line);color:var(--text)}
+pre#out{display:none;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font-size:12px;white-space:pre-wrap;margin-top:14px}
+.status{font-size:12px;padding:4px 10px;border-radius:999px;display:inline-block}
+.status.warn{background:#FEF3C7;color:#B45309}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Mobile Growth Diagnostics</h1>
+  <div class="sub">聚合·只读 / aggregate, read-only · 填完点「Start analysis」把参数交回助手。也可以直接用文字描述这些参数。</div>
+
+  <details id="first-run">
+    <summary>① First-run setup <span class="status warn">MCP not detected — fill if needed</span></summary>
+    <div class="desc">Adjust token 在 MCP client 配置层设置(不持久化)。已连则跳过本区。</div>
+    <div class="row">
+      <label>Adjust MCP Token <span class="opt">(only used to generate client-config JSON; not stored)</span></label>
+      <input type="password" id="token" placeholder="paste token to generate config">
+    </div>
+    <div class="row">
+      <label>Account ID <span class="opt">optional — multi-account → X-Account-ID</span></label>
+      <input type="text" id="account" placeholder="e.g. 123456">
+    </div>
+    <button class="ghost" type="button" onclick="genConfig()">Generate client config JSON</button>
+    <pre id="out"></pre>
+  </details>
+
+  <form id="cfg" class="card" onsubmit="return submitForm(event)">
+    <h2>② This run</h2>
+    <div class="desc">默认值已填好,可一键「用推荐配置开始」。</div>
+
+    <div class="row">
+      <label>App Token(s) <span class="opt">comma-separated; supports multi-app compare</span></label>
+      <input type="text" id="apps" placeholder="e.g. abc123, def456">
+    </div>
+
+    <div class="grid2">
+      <div class="row"><label>Window start</label><input type="date" id="from"></div>
+      <div class="row"><label>Window end</label><input type="date" id="to"></div>
+    </div>
+
+    <div class="row">
+      <label>Comparison period</label>
+      <select id="compare">
+        <option value="prev_period" selected>Previous period (环比)</option>
+        <option value="prev_year">Same period last year (同比)</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Scenarios <span class="opt">default: all four</span></label>
+      <div class="checks">
+        <label><input type="checkbox" value="data_quality" checked> Data quality (P0)</label>
+        <label><input type="checkbox" value="ua_performance" checked> UA performance (P0)</label>
+        <label><input type="checkbox" value="reconciliation" checked> Reconciliation (P1)</label>
+        <label><input type="checkbox" value="fraud" checked> Ad-fraud (P1)</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Dimensions</label>
+      <div class="checks" id="dims">
+        <label><input type="checkbox" value="country" checked> country</label>
+        <label><input type="checkbox" value="network" checked> network</label>
+        <label><input type="checkbox" value="platform" checked> platform</label>
+        <label><input type="checkbox" value="campaign"> campaign</label>
+        <label><input type="checkbox" value="creative"> creative</label>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="row">
+        <label>Key events <span class="opt">slug; auto-detect if blank</span></label>
+        <input type="text" id="events" placeholder="purchase, registration">
+      </div>
+      <div class="row">
+        <label>Cohort periods</label>
+        <input type="text" id="cohorts" value="0d, 1d, 7d, 30d">
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="row">
+        <label>ROAS revenue basis</label>
+        <select id="basis"><option selected>All</option><option>IAP</option><option>Ad</option></select>
+      </div>
+      <div class="row">
+        <label>Output language</label>
+        <select id="lang"><option value="follow" selected>Follow chat</option><option value="zh">中文</option><option value="en">English</option></select>
+      </div>
+    </div>
+
+    <details>
+      <summary>Alert thresholds (advanced)</summary>
+      <div class="grid2">
+        <div class="row"><label>Install drop % (≤)</label><input type="text" id="t_drop" value="-30%"></div>
+        <div class="row"><label>CPI rise % (≥)</label><input type="text" id="t_cpi" value="+25%"></div>
+        <div class="row"><label>ROAS D7 floor</label><input type="text" id="t_roas" value="15%"></div>
+        <div class="row"><label>Retention drop % (≤)</label><input type="text" id="t_ret" value="-20%"></div>
+        <div class="row"><label>Reconciliation diff (>)</label><input type="text" id="t_recon" value="10%"></div>
+        <div class="row"><label>CTR anomaly</label><input type="text" id="t_ctr" value="mean + 3σ"></div>
+      </div>
+      <div class="hint">Defaults live in references/anomaly_playbooks.md.</div>
+    </details>
+
+    <div class="row">
+      <label>External reconciliation file <span class="opt">mode B — Meta/Google CSV path</span></label>
+      <input type="text" id="extfile" placeholder="/path/to/meta_export.csv (leave blank for MCP-only)">
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="primary">Start analysis</button>
+      <button type="button" class="ghost" onclick="recommended()">Use recommended config</button>
+    </div>
+  </form>
+
+  <pre id="result" style="display:none;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font-size:12px;white-space:pre-wrap"></pre>
+</div>
+
+<script>
+// sensible default window: last 14 days
+(function(){
+  const t=new Date(),f=new Date(Date.now()-13*864e5);
+  document.getElementById("to").value=t.toISOString().slice(0,10);
+  document.getElementById("from").value=f.toISOString().slice(0,10);
+})();
+
+function genConfig(){
+  const tok=document.getElementById("token").value.trim()||"<< your token >>";
+  const acc=document.getElementById("account").value.trim();
+  const args=["mcp-remote","https://automate.adjust.com/ai-assistant-service/mcp/",
+    "--header","Authorization: Bearer "+tok];
+  if(acc) args.push("--header","X-Account-ID: "+acc);
+  const cfg={mcpServers:{"adjust-copilot":{command:"npx",args}}};
+  const out=document.getElementById("out");
+  out.style.display="block";
+  out.textContent="Paste into your MCP client config, then restart the client:\n\n"+JSON.stringify(cfg,null,2);
+}
+function checked(sel){return [...document.querySelectorAll(sel+" input:checked")].map(c=>c.value);}
+function collect(){
+  return {
+    apps:document.getElementById("apps").value.split(",").map(s=>s.trim()).filter(Boolean),
+    window:{from:document.getElementById("from").value,to:document.getElementById("to").value},
+    compare:document.getElementById("compare").value,
+    scenarios:[...document.querySelectorAll('.checks input:checked')].filter(c=>["data_quality","ua_performance","reconciliation","fraud"].includes(c.value)).map(c=>c.value),
+    dimensions:checked("#dims"),
+    events:document.getElementById("events").value.split(",").map(s=>s.trim()).filter(Boolean),
+    cohorts:document.getElementById("cohorts").value.split(",").map(s=>s.trim()).filter(Boolean),
+    roas_basis:document.getElementById("basis").value,
+    language:document.getElementById("lang").value,
+    thresholds:{install_drop:document.getElementById("t_drop").value,cpi_rise:document.getElementById("t_cpi").value,
+      roas_floor_d7:document.getElementById("t_roas").value,retention_drop:document.getElementById("t_ret").value,
+      reconciliation_diff:document.getElementById("t_recon").value,ctr:document.getElementById("t_ctr").value},
+    external_file:document.getElementById("extfile").value.trim()||null
+  };
+}
+function show(params){
+  const r=document.getElementById("result");
+  r.style.display="block";
+  r.textContent="✅ Config ready — copy this back to the assistant (or just describe it):\n\n"+JSON.stringify(params,null,2);
+  if(window.parent) try{window.parent.postMessage({type:"mgd-intake",params},"*");}catch(e){}
+}
+function submitForm(e){e.preventDefault();show(collect());return false;}
+function recommended(){show(collect());}
+</script>
+</body>
+</html>
