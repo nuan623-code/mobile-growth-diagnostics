@@ -160,24 +160,37 @@ def detect(data, scenarios, th, bands, bmk=None, app_verticals=None,
             "cause": cause, "action": action, "query": query,
         })
 
-    # ---- Data quality: install/session cliffs + gaps ----
+    # ---- Data quality: install/session/event cliffs + gaps ----
     if "data_quality" in scenarios:
-        for metric in ("installs", "sessions"):
+        event_metrics = [m for m in data["meta"].get("metrics", [])
+                         if m == "events" or m.endswith("_events")]
+        for metric in ["installs", "sessions"] + event_metrics:
             for sl, ts in _by_slice_timeseries(rows, dims, metric).items():
                 vals = [v for _, v in ts]
                 if not vals or max(vals) < th["min_installs_for_signal"]:
                     continue
-                # cliff: last point vs trailing mean
+                # cliff: scan the whole window (each point vs its trailing
+                # mean) and report the worst break — a mid-series level shift
+                # (e.g. payments broke five days ago, then stayed low) must not
+                # escape just because the last point isn't the break day.
                 if len(ts) >= 4:
-                    hist = vals[:-1]
-                    curr = vals[-1]
-                    base = stats.mean(hist)
-                    ch = _pct_change(curr, base)
-                    if ch is not None and ch <= th["install_drop_pct"]:
+                    worst = None  # (change, date, trailing_mean)
+                    for i in range(3, len(vals)):
+                        base = stats.mean(vals[:i])
+                        ch = _pct_change(vals[i], base)
+                        if ch is not None and ch <= th["install_drop_pct"] and \
+                                (worst is None or ch < worst[0]):
+                            worst = (ch, ts[i][0], base)
+                    if worst:
+                        ch, when, base = worst
                         ratio = abs(ch) / abs(th["install_drop_pct"])
+                        is_event = metric == "events" or metric.endswith("_events")
                         add("data_quality", metric, sl,
-                            f"{ch*100:.0f}% vs trailing mean",
-                            f"{base:.0f}", "install_cliff",
+                            f"{ch*100:.0f}% vs trailing mean on {when}",
+                            f"{base:.0f}",
+                            "event_tracking_break_or_flow_change" if is_event else "install_cliff",
+                            "check event tracking/SDK config and in-app flow changes"
+                            if is_event else
                             "investigate spend pause / tracking / attribution loss",
                             f"metric={metric}; dims={dims}; cliff vs trailing mean",
                             _sev(ratio, bands))

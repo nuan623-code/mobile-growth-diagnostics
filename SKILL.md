@@ -126,6 +126,14 @@ country × network). For iOS, auto-add the SKAN core metrics; if a SKAN metric i
 unavailable (needs Adjust TAM enablement), **degrade gracefully and note it** in
 the dashboard rather than erroring.
 
+**Event data (for the Events panel):** also pull `events` and the per-event
+`{event_slug}_events` counts (auto-detect slugs; keep the top ~10 by volume,
+plus `revenue_events` and any slugs the user names as key events). Compute
+events-per-install / per-DAU and a key-event funnel (e.g. install →
+registration → first purchase) when the slugs support one. If the app has no
+event tracking configured, skip the pull — the dashboard renders an honest
+empty state for the Events panel instead.
+
 Remember the units quirk: **ROAS/ROI come back from the API as decimals** (e.g.
 `0.4`); display as percentages (`40%`) and note the conversion in tooltips.
 
@@ -170,10 +178,20 @@ Run `scripts/build_dashboard.py` to inject the data and **your written insights*
 into `assets/dashboard_template.html`. Insights and recommendations are written by
 you at build time into static HTML — the dashboard must not call a model at
 runtime. The dashboard is light-themed, single-file, offline-openable, and
-includes all modules in §9.2: Executive Summary, KPI cards, Anomaly Center,
-Trends, Cross-dimension breakdown (with drill-down), Retention & LTV curves, Data
-Validation, UA Recommendations, Appendix. Every chart and every anomaly needs a
-one-sentence plain-language "what this means" read.
+organized as **three panels** (tabs with JS; stacked sections without):
+
+- **概览 Overview** — Executive Summary, KPI cards, UA Recommendations: a
+  decision-maker should be done after this panel.
+- **数据分析 Deep Analysis** — Anomaly Center, Trends, Cross-dimension breakdown
+  (with drill-down), Retention & LTV curves, Data Validation, Appendix.
+- **事件分析 Event Analysis** — event overview cards (events per install/DAU),
+  key-event funnel, event volume ranking, event trends (`insights.events`
+  schema in build_dashboard.py). No event data pulled → the panel renders an
+  honest empty state; never fabricate event numbers. Events have **no industry
+  benchmark** — compare against the app's own history only.
+
+Every chart and every anomaly needs a one-sentence plain-language "what this
+means" read, and every verdict follows the evidence rule above.
 
 When the app's vertical is known, put the numbers in industry context
 (`references/benchmarks_2025h2.json`): add the benchmark median as a **dashed

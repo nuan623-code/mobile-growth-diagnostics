@@ -33,6 +33,16 @@ insights.json schema (all optional; provide as much as you can):
               "ltv":[{"label","values":[...]}],"note"},
       # "dashed": true renders a gray dashed reference curve — use it for
       # industry benchmark medians (references/benchmarks_2025h2.json).
+  "events": {"summary":[{...same shape as kpis...}],
+             "funnel":{"stages":[{"label","value","rate_from_prev":0-1}],"note"},
+             "top_events":{"columns":[...],"rows":[{"key","values":{}}],"note"},
+             "trends":[{...same shape as trends...}],"note"},
+      # Events panel. Omit the key entirely when event data wasn't pulled —
+      # the builder then renders an honest empty-state card instead.
+
+The dashboard renders as three panels (tabs with JS, stacked sections without):
+overview (exec summary, KPIs, recommendations) · analysis (anomalies, trends,
+breakdown, cohorts, validation, appendix) · events.
   "recommendations": [{"text","basis","impact","confidence","priority"}],
   "appendix": {"params":{},"degraded_metrics":[...],"notes":"..."}
 }
@@ -52,6 +62,10 @@ T = {
  "en": {"exec":"Executive Summary","kpi":"KPI Overview","anom":"Anomaly Center",
         "trends":"Trends","breakdown":"Cross-dimension Breakdown","cohort":"Retention & LTV",
         "valid":"Data Validation","rec":"UA Recommendations","appendix":"Appendix",
+        "tab_overview":"Overview","tab_analysis":"Deep Analysis","tab_events":"Event Analysis",
+        "ev_summary":"Event Overview","ev_funnel":"Key-event Funnel","ev_top":"Event Volume Ranking",
+        "ev_trends":"Event Trends","conv":"conv.",
+        "ev_empty":"No event data was pulled in this run. To enable this panel: configure event tracking in Adjust, then pull the events / {event_slug}_events metrics — the funnel, per-install depth, ranking, and event-cliff detection are generated automatically.",
         "health":"Health","takeaways":"Key takeaways","topa":"Top anomalies","topact":"Top actions",
         "all":"All","high":"High","medium":"Medium","low":"Low",
         "change":"Change","base":"Baseline","cause":"Likely cause","action":"Recommendation",
@@ -65,6 +79,10 @@ T = {
  "zh": {"exec":"高管摘要","kpi":"KPI 概览","anom":"异常检测中心",
         "trends":"趋势分析","breakdown":"跨维度分解","cohort":"留存 & LTV",
         "valid":"数据校验","rec":"投放优化建议","appendix":"附录",
+        "tab_overview":"概览","tab_analysis":"数据分析","tab_events":"事件分析",
+        "ev_summary":"事件概览","ev_funnel":"关键事件漏斗","ev_top":"事件量排行",
+        "ev_trends":"事件趋势","conv":"转化",
+        "ev_empty":"本次运行未拉取事件数据。启用方式:在 Adjust 配置事件埋点后,拉取 events / {event_slug}_events 指标——漏斗、人均事件深度、排行与事件断崖检测将自动生成。",
         "health":"健康度","takeaways":"关键结论","topa":"最严重异常","topact":"建议动作",
         "all":"全部","high":"高","medium":"中","low":"低",
         "change":"变化","base":"基线","cause":"原因假设","action":"建议动作",
@@ -194,9 +212,16 @@ def render(payload):
       <div class="tools"><button class="btn" id="btn-export">{t["export"]}</button></div>
     </header>''')
 
-    def sec(title_, body, hint=""):
+    # Panel tabs: overview / analysis / events. With JS the nav switches panels;
+    # without JS every section renders stacked in this order.
+    out.append(f'''<nav class="tabs">
+      <a href="#" data-tab="overview" class="active">{t["tab_overview"]}</a>
+      <a href="#" data-tab="analysis">{t["tab_analysis"]}</a>
+      <a href="#" data-tab="events">{t["tab_events"]}</a></nav>''')
+
+    def sec(title_, body, hint="", group="analysis"):
         h = f' <span class="hint">{e(hint)}</span>' if hint else ""
-        out.append(f'<section><h2>{e(title_)}{h}</h2>{body}</section>')
+        out.append(f'<section data-group="{e(group)}"><h2>{e(title_)}{h}</h2>{body}</section>')
 
     def li(arr):
         if not arr:
@@ -213,13 +238,12 @@ def render(payload):
             <div><div class="muted">{t["topa"]}</div>{li(ex.get("top_anomalies"))}</div>
             <div><div class="muted">{t["topact"]}</div>{li(ex.get("top_actions"))}</div>
           </div></div></div>'''
-        sec(t["exec"], body)
+        sec(t["exec"], body, group="overview")
 
     # ---- KPIs ----
-    kpis = I.get("kpis") or []
-    if kpis:
+    def kpi_cards(arr):
         cards = []
-        for k in kpis:
+        for k in arr:
             d = k.get("delta_pct")
             cls = "flat" if d is None else ("up" if d > 0 else ("down" if d < 0 else "flat"))
             sc = STATUS_COLORS.get(k.get("status"), "#3B82F6")
@@ -229,7 +253,30 @@ def render(payload):
             cards.append(f'''<div class="card kpi"><div class="label">{e(k.get("label"))}</div>
               <div class="val">{e(k.get("value"))}</div>
               <div class="delta {cls}">{signpct(d)}</div>{sparkline(k.get("spark"), sc)}{bmk}{note}</div>''')
-        sec(t["kpi"], f'<div class="grid kpis">{"".join(cards)}</div>')
+        return cards
+
+    kpis = I.get("kpis") or []
+    if kpis:
+        sec(t["kpi"], f'<div class="grid kpis">{"".join(kpi_cards(kpis))}</div>', group="overview")
+
+    # ---- recommendations (overview panel: what / so-what / now-what) ----
+    rs = I.get("recommendations") or []
+    if rs:
+        items = []
+        for r in rs:
+            pr = r.get("priority", "")
+            prc = {"high": "b-high", "medium": "b-medium"}.get(pr, "b-low")
+            meta = []
+            if r.get("basis"):
+                meta.append(f'<span>{t["basis"]}: <b>{e(r["basis"])}</b></span>')
+            if r.get("impact"):
+                meta.append(f'<span>{t["impact"]}: <b>{e(r["impact"])}</b></span>')
+            if r.get("confidence"):
+                meta.append(f'<span>{t["conf"]}: <b>{e(r["confidence"])}</b></span>')
+            if pr:
+                meta.append(f'<span>{t["prio"]}: <span class="badge {prc}">{t.get(pr, pr)}</span></span>')
+            items.append(f'<div class="rec"><div>{e(r.get("text"))}</div><div class="meta">{"".join(meta)}</div></div>')
+        sec(t["rec"], "".join(items), group="overview")
 
     # ---- anomaly center ----
     an = data.get("anomalies") or []
@@ -266,10 +313,9 @@ def render(payload):
         sec(t["anom"], f'<div class="card muted">{t["none"]}</div>')
 
     # ---- trends ----
-    trends = I.get("trends") or []
-    if trends:
+    def trend_cards(trs):
         cards = []
-        for tr in trends:
+        for tr in trs:
             series = []
             colmap = {"current": "#3B82F6", "compare": "#94A3B8"}
             for j, (name, vals) in enumerate((tr.get("series") or {}).items()):
@@ -277,6 +323,11 @@ def render(payload):
             chart = line_chart(tr.get("dates") or [], series, tr.get("as_percent", False))
             note = f'<div class="whatmeans">{t["whatmeans"]}: {e(tr["note"])}</div>' if tr.get("note") else ""
             cards.append(f'<div class="card"><div style="font-weight:600;margin-bottom:6px">{e(tr.get("label"))}</div>{chart}{note}</div>')
+        return cards
+
+    trends = I.get("trends") or []
+    if trends:
+        cards = trend_cards(trends)
         sec(t["trends"], f'<div class="grid {"cols-2" if len(cards) > 1 else ""}">{"".join(cards)}</div>')
 
     # ---- breakdown ----
@@ -310,25 +361,6 @@ def render(payload):
                  f'<div class="card"><div style="font-weight:600;margin-bottom:6px">{t["ltv"]}</div>{cohort_chart(c.get("ltv"), False)}</div>')
         note = f'<div class="whatmeans">{t["whatmeans"]}: {e(c["note"])}</div>' if c.get("note") else ""
         sec(t["cohort"], f'<div class="grid cols-2">{cards}</div>{note}')
-
-    # ---- recommendations ----
-    rs = I.get("recommendations") or []
-    if rs:
-        items = []
-        for r in rs:
-            pr = r.get("priority", "")
-            prc = {"high": "b-high", "medium": "b-medium"}.get(pr, "b-low")
-            meta = []
-            if r.get("basis"):
-                meta.append(f'<span>{t["basis"]}: <b>{e(r["basis"])}</b></span>')
-            if r.get("impact"):
-                meta.append(f'<span>{t["impact"]}: <b>{e(r["impact"])}</b></span>')
-            if r.get("confidence"):
-                meta.append(f'<span>{t["conf"]}: <b>{e(r["confidence"])}</b></span>')
-            if pr:
-                meta.append(f'<span>{t["prio"]}: <span class="badge {prc}">{t.get(pr, pr)}</span></span>')
-            items.append(f'<div class="rec"><div>{e(r.get("text"))}</div><div class="meta">{"".join(meta)}</div></div>')
-        sec(t["rec"], "".join(items))
 
     # ---- data validation ----
     pf = data.get("preflight") or {}
@@ -369,6 +401,47 @@ def render(payload):
         if ap.get("notes"):
             dl.append(f"<dt>Notes</dt><dd>{e(ap['notes'])}</dd>")
         sec(t["appendix"], f'<div class="card appendix"><dl><dt>{t["params"]}</dt><dd></dd>{"".join(dl)}</dl></div>')
+
+    # ---- events panel ----
+    ev = I.get("events")
+    if ev:
+        if ev.get("summary"):
+            sec(t["ev_summary"], f'<div class="grid kpis">{"".join(kpi_cards(ev["summary"]))}</div>',
+                group="events")
+        fu = ev.get("funnel")
+        if fu and fu.get("stages"):
+            stages = fu["stages"]
+            mx = max((s.get("value") or 0) for s in stages) or 1
+            srows = []
+            for s in stages:
+                w = (s.get("value") or 0) / mx * 100
+                rate = s.get("rate_from_prev")
+                rate_h = (f'→ {rate*100:.1f}% {t["conv"]}'
+                          if isinstance(rate, (int, float)) else "—")
+                srows.append(f'<div class="stage"><div class="flabel">{e(s.get("label"))}</div>'
+                             f'<div class="fbarwrap"><div class="fbar" style="width:{w:.1f}%"></div>'
+                             f'<span class="fval">{fmt(s.get("value"))}</span></div>'
+                             f'<div class="frate">{e(rate_h)}</div></div>')
+            note = f'<div class="whatmeans">{t["whatmeans"]}: {e(fu["note"])}</div>' if fu.get("note") else ""
+            sec(t["ev_funnel"], f'<div class="card"><div class="funnel">{"".join(srows)}</div>{note}</div>',
+                group="events")
+        te = ev.get("top_events")
+        if te and te.get("rows"):
+            cols = te.get("columns") or []
+            head = "<tr><th></th>" + "".join(f"<th>{e(c)}</th>" for c in cols) + "</tr>"
+            trs = "".join(f'<tr><td>{e(r.get("key"))}</td>'
+                          + "".join(f"<td>{fmt((r.get('values') or {}).get(c))}</td>" for c in cols)
+                          + "</tr>" for r in te["rows"])
+            note = f'<div class="whatmeans">{t["whatmeans"]}: {e(te["note"])}</div>' if te.get("note") else ""
+            sec(t["ev_top"], f'<div class="card"><table><thead>{head}</thead><tbody>{trs}</tbody></table>{note}</div>',
+                group="events", hint=str(len(te["rows"])))
+        if ev.get("trends"):
+            cards = trend_cards(ev["trends"])
+            sec(t["ev_trends"], f'<div class="grid {"cols-2" if len(cards) > 1 else ""}">{"".join(cards)}</div>',
+                group="events")
+    else:
+        # honest empty state: say what's missing and how to enable it
+        sec(t["tab_events"], f'<div class="card muted">{t["ev_empty"]}</div>', group="events")
 
     gen = (meta.get("generated_at") or "")
     foot = t["footer"] + (f" · @ {e(gen)}" if gen else "") + (" · ROAS/ROI 显示为% (API 返回小数)" if lang == "zh" else " · ROAS/ROI shown as % (API returns decimals)")

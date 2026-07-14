@@ -52,8 +52,12 @@ Always respect `min_installs_for_signal` to avoid flagging tiny noisy slices.
 
 ## 8.1 Data quality (P0 — default on)
 
-- `installs` / `sessions` by `date × network × country`: cliff detection
-  (drop > `install_drop_pct` **or** below historical p`install_drop_percentile`).
+- `installs` / `sessions` / `events` / `{slug}_events` by
+  `date × network × country`: cliff detection (drop > `install_drop_pct` **or**
+  below historical p`install_drop_percentile`). The scan covers the **whole
+  window** — each point vs its trailing mean, worst break reported with its
+  date — so a mid-series level shift (broke days ago, stayed low) is caught,
+  not just a bad last day.
 - Attribution loss: `network_installs_diff_signed` absolute value / share rising
   abnormally.
 - SKAN: `invalid_payloads` share up (> `invalid_payload_rate_max`);
