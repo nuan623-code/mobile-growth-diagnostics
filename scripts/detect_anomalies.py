@@ -328,12 +328,15 @@ def detect(data, scenarios, th, bands, bmk=None, app_verticals=None,
                     "installs spike with ~0 retention & revenue", "high")
 
     # Dedupe row-level findings: the same slice can trip a per-row check on
-    # many dates. Collapse to one anomaly per (scenario, metric, slice), keeping
-    # the worst severity and noting how many dates were affected.
+    # many dates. Collapse to one anomaly per (scenario, metric, slice, cause),
+    # keeping the worst severity and noting how many dates were affected.
+    # `cause` distinguishes different checks on the same metric×slice (e.g. a
+    # PoP retention drop vs a below-benchmark finding are separate anomalies —
+    # operational vs structural, see decision_framework 3D-5).
     severity_rank = {"high": 0, "medium": 1, "low": 2}
     merged = {}
     for a in anomalies:
-        key = (a["scenario"], a["metric"], a["slice"])
+        key = (a["scenario"], a["metric"], a["slice"], a["cause"])
         if key not in merged:
             a["_count"] = 1
             merged[key] = a
