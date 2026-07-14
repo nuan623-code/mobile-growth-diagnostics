@@ -85,12 +85,15 @@ Fields (full spec in the form and in §5 of the design doc):
 - **First-run config (collapsible, hidden if already connected):** Adjust MCP
   token (used only to generate the client-config JSON, never persisted),
   optional Account ID (→ `X-Account-ID` header).
-- **This run:** App Token(s); analysis window (default last 14 days); comparison
-  period (default previous period); scenarios (default all four); dimensions
-  (default country, network, platform); key event slugs (auto-detect); cohort
-  periods (default D0/D1/D7/D30); ROAS revenue basis (default All); alert
-  thresholds (defaults in `references/anomaly_playbooks.md`); external
-  reconciliation file (optional); output language (default: follow chat).
+- **This run:** App Token(s); **app vertical per app** (e.g. `Gaming/Casino` —
+  powers the benchmark-relative checks in playbooks §8.5; not derivable from
+  Adjust data, so ask; if unknown, those checks are skipped gracefully);
+  analysis window (default last 14 days); comparison period (default previous
+  period); scenarios (default all four); dimensions (default country, network,
+  platform); key event slugs (auto-detect); cohort periods (default
+  D0/D1/D7/D30); ROAS revenue basis (default All); alert thresholds (defaults in
+  `references/anomaly_playbooks.md`); external reconciliation file (optional);
+  output language (default: follow chat).
 
 If the MCP is **not** connected, switch the first-run section into the **token
 setup assistant**: guide the user to generate a token, then generate the exact
@@ -135,7 +138,11 @@ playbooks in `references/anomaly_playbooks.md`. The four scenarios:
   `skad_conversion_value_null_rate` spikes.
 - **UA performance (P0, default on):** eCPI/eCPC/eCPM jumps, ROAS below floor,
   ROI turning negative, retention breaks, ARPDAU anomalies, "high spend / low
-  ROAS" drag campaigns.
+  ROAS" drag campaigns. Also **benchmark-relative checks** (§8.5): retention /
+  eCPI vs the industry baseline in `references/benchmarks_2025h2.json` — pass
+  the intake's app→vertical map via `--app-verticals` (e.g.
+  `'{"89King": "Gaming/Casino"}'`; append `/android` or `/ios` to pin the OS
+  when rows lack a platform dimension).
 - **Cross-source reconciliation (P1):** Adjust attribution vs network (`*_diff`),
   and — in mode B — Adjust vs external Meta/Google export aligned on date×campaign.
 - **Ad-fraud signals (P1):** abnormal CTR/CCR, sub-publishers with install spikes
@@ -192,6 +199,11 @@ perform write operations against Adjust or any ad network.
   before building cross-dimension queries.
 - `references/anomaly_playbooks.md` — the four scenarios' detection logic and the
   **editable thresholds (at the top)**; read in Step 4.
+- `references/benchmarks_2025h2.json` — industry baselines (Adjust 2025 H2 App
+  Trends): eCPI/eCPM + retention D1/D7(/D14)/D30, by vertical × sub-vertical ×
+  geo × OS, mean+median (**median is the anchor**). Used by the §8.5
+  benchmark-relative checks and for "vs benchmark" context in the dashboard.
+  Directional, not SLAs; missing cells are skipped, never invented.
 - `references/mcp_setup.md` — Adjust MCP connection, token assistant, client-config
   JSON template, `X-Account-ID`; read in Step 1 when the MCP isn't connected.
 - `references/report_copy.md` — bilingual (中/EN) copy templates for summaries,
@@ -200,8 +212,9 @@ perform write operations against Adjust or any ad network.
 ## Scripts
 
 - `scripts/transform.py` — MCP rows + external files → unified structure.
-- `scripts/detect_anomalies.py` — period-over-period, rolling mean ± kσ, gap, and
-  consistency checks.
+- `scripts/detect_anomalies.py` — period-over-period, rolling mean ± kσ, gap,
+  consistency, and benchmark-relative checks (`--app-verticals` /
+  `--default-vertical` map apps to benchmark categories).
 - `scripts/validate_sample.py` — pre-flight card + internal totals reconciliation.
 - `scripts/build_dashboard.py` — inject data + insights → single-file HTML.
 

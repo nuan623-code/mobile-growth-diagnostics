@@ -27,6 +27,8 @@ thresholds:
   skan_null_rate_max: 0.20       # skad_conversion_value_null_rate flagged above 20%
   invalid_payload_rate_max: 0.05 # invalid_payloads / skad_total_installs above 5%
   min_installs_for_signal: 50    # ignore slices below this volume (noise floor)
+  retention_benchmark_tol: 0.30  # flag ret_dN < benchmark median × (1 − 30%)  (§8.5)
+  ecpi_benchmark_tol: 0.50       # flag eCPI  > benchmark median × (1 + 50%)  (§8.5)
 severity_bands:                  # by |relative change| vs the flagging threshold
   high: 2.0                      # ≥ 2× over threshold
   medium: 1.0                    # over threshold
@@ -84,6 +86,39 @@ Always respect `min_installs_for_signal` to avoid flagging tiny noisy slices.
   `revenue` ≈ 0 (invalid traffic).
 - LAT share `limit_ad_tracking_install_rate` abnormal.
 - `network_installs_diff` inflated abnormally (network over-reporting).
+
+---
+
+## 8.5 Benchmark-relative checks (industry baseline, part of UA performance)
+
+Absolute checks (8.1–8.4) compare a slice against **its own history**. These two
+rules compare it against the **industry baseline** in
+`references/benchmarks_2025h2.json` (Adjust 2025 H2 App Trends, internal data;
+eCPI/eCPM in USD, retention as fractions; **median is the primary anchor**, mean
+stored alongside). Coverage: Gaming (17 sub-verticals) / Social / Utilities /
+E-commerce / Finance × ~40 geos × iOS/Android.
+
+- `retention_below_benchmark`: `ret_dN < median[sub_vertical, geo, os, dN] × (1 − retention_benchmark_tol)`
+  — severity scales with the gap. A cohort can look "stable vs its own history"
+  and still be structurally broken vs its category (e.g. Casino·Vietnam·Android
+  D1 median is 12%; a stable 2% is still a high-severity finding).
+- `ecpi_above_benchmark`: `ecpi > median[sub_vertical, geo, os] × (1 + ecpi_benchmark_tol)`
+  — **must be evaluated per-geo**, never on the account mix (a geo-mix shift
+  masquerades as an eCPI anomaly otherwise).
+
+Requirements & graceful degradation:
+
+- The app's **vertical/sub-vertical cannot be derived from Adjust data** — the
+  analyst supplies it (intake step), e.g. `89King → Gaming/Casino`. Optionally
+  pin the OS: `Gaming/Casino/android`. Unmapped apps are skipped silently.
+- Geo names are normalized (e.g. Adjust `Viet Nam` → benchmark `Vietnam`). A geo
+  missing from the benchmark table (e.g. Casino eCPI only covers IN/US) → that
+  check is skipped for that row: **missing benchmark ≠ anomaly, never invent a
+  baseline.** Gaming rows fall back to the sub-vertical ALL-geo row when the
+  specific geo is absent for **retention only** (retention varies less by geo
+  than eCPI does; eCPI never falls back).
+- Benchmarks are **directional** (2025 Q4 snapshot), not SLAs: pair a benchmark
+  finding with the slice's own trend before acting on it.
 
 ---
 

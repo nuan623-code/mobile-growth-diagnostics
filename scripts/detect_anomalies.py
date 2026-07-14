@@ -28,8 +28,60 @@ DEFAULT_THRESHOLDS = {
     "retention_drop_pct": -0.20, "reconciliation_diff_pct": 0.10,
     "ctr_sigma": 3.0, "outlier_k": 3.0, "skan_null_rate_max": 0.20,
     "invalid_payload_rate_max": 0.05, "min_installs_for_signal": 50,
+    "retention_benchmark_tol": 0.30, "ecpi_benchmark_tol": 0.50,
 }
 SEVERITY_BANDS = {"high": 2.0, "medium": 1.0, "low": 0.5}
+
+# Adjust dimension values -> benchmark table geo names (see playbooks §8.5).
+GEO_ALIASES = {
+    "Viet Nam": "Vietnam", "Korea": "South Korea",
+    "Republic Of Korea": "South Korea", "Korea, Republic Of": "South Korea",
+    "Russian Federation": "Russia", "Türkiye": "Turkey",
+    "United States Of America": "United States", "USA": "United States",
+    "UAE": "United Arab Emirates", "UK": "United Kingdom",
+}
+BMK_RET_METRICS = {
+    "retention_rate_1d": "ret_d1", "retention_rate_7d": "ret_d7",
+    "retention_rate_14d": "ret_d14", "retention_rate_30d": "ret_d30",
+}
+
+
+def load_benchmarks(path):
+    """Index benchmarks_2025h2.json as {(vertical, sub, os, geo, metric): median}."""
+    if not path or not os.path.exists(path):
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        entries = json.load(f).get("benchmarks", [])
+    return {(b["vertical"], b["sub_vertical"], b["os"], b["geo"], b["metric"]):
+            b["median"] for b in entries if b.get("median")}
+
+
+def parse_vertical(spec):
+    """'Gaming/Casino[/android]' -> (vertical, sub_vertical, pinned_os|None)."""
+    if not spec:
+        return None
+    parts = [p.strip() for p in str(spec).split("/") if p.strip()]
+    if not parts:
+        return None
+    vertical = parts[0]
+    sub = parts[1] if len(parts) > 1 else vertical
+    os_pin = parts[2].lower() if len(parts) > 2 else None
+    return vertical, sub, os_pin
+
+
+def _row_bmk_ctx(row, app_verticals, default_vertical):
+    """Resolve (vertical, sub, os, geo) for a row, or None if unmappable."""
+    spec = (app_verticals or {}).get(row.get("app")) or default_vertical
+    parsed = parse_vertical(spec)
+    if not parsed:
+        return None
+    vertical, sub, os_pin = parsed
+    os_ = str(row.get("platform") or "").strip().lower() or os_pin
+    if os_ not in ("android", "ios"):
+        return None
+    country = row.get("country")
+    geo = GEO_ALIASES.get(country, country)
+    return vertical, sub, os_, geo
 
 
 def load_thresholds(playbooks_path):
@@ -94,10 +146,12 @@ def _pct_change(curr, prev):
     return (curr - prev) / abs(prev)
 
 
-def detect(data, scenarios, th, bands):
+def detect(data, scenarios, th, bands, bmk=None, app_verticals=None,
+           default_vertical=None):
     rows = data["rows"]
     dims = [d for d in data["meta"]["dimensions"]]
     anomalies = []
+    bmk = bmk or {}
 
     def add(scenario, metric, sl, change, baseline, cause, action, query, sev):
         anomalies.append({
@@ -192,6 +246,49 @@ def detect(data, scenarios, th, bands):
                             "low_quality_mix_or_product_regression",
                             "segment by network/country; check product changes",
                             f"metric={metric}; PoP drop", _sev(abs(ch) / abs(th["retention_drop_pct"]), bands))
+        # Benchmark-relative checks (playbooks §8.5). Skip silently whenever the
+        # app→vertical mapping, the OS, or the benchmark cell is missing:
+        # a missing benchmark is not an anomaly.
+        for r in rows:
+            ctx = _row_bmk_ctx(r, app_verticals, default_vertical)
+            if not ctx:
+                continue
+            vertical, sub, os_, geo = ctx
+            inst = r.get("installs")
+            if isinstance(inst, (int, float)) and inst < th["min_installs_for_signal"]:
+                continue
+            tol = th["retention_benchmark_tol"]
+            for metric, bmk_metric in BMK_RET_METRICS.items():
+                v = r.get(metric)
+                if not isinstance(v, (int, float)):
+                    continue
+                # retention only: fall back to the sub-vertical ALL-geo row
+                used_geo, med = geo, bmk.get((vertical, sub, os_, geo, bmk_metric))
+                if not med:
+                    used_geo, med = "ALL", bmk.get((vertical, sub, os_, "ALL", bmk_metric))
+                if not med or v >= med * (1 - tol):
+                    continue
+                gap = (med - v) / med
+                add("ua_performance", metric, _slice_key(r, dims),
+                    f"{v*100:.1f}% vs benchmark median {med*100:.0f}% (-{gap*100:.0f}%)",
+                    f"Adjust'25Q4 {sub}/{used_geo}/{os_} median {med*100:.0f}%",
+                    "structurally_below_category_baseline",
+                    "check traffic quality & onboarding; benchmark is directional — pair with own trend",
+                    f"metric={metric}; vs benchmarks_2025h2 [{vertical}/{sub}/{os_}/{used_geo}]",
+                    _sev(gap / tol, bands))
+            v = r.get("ecpi")
+            tol = th["ecpi_benchmark_tol"]
+            if isinstance(v, (int, float)) and v > 0 and geo:
+                med = bmk.get((vertical, sub, os_, geo, "ecpi"))  # per-geo only, no fallback
+                if med and v > med * (1 + tol):
+                    over = (v - med) / med
+                    add("ua_performance", "ecpi", _slice_key(r, dims),
+                        f"${v:.2f} vs benchmark median ${med:.2f} (+{over*100:.0f}%)",
+                        f"Adjust'25Q4 {sub}/{geo}/{os_} median ${med:.2f}",
+                        "paying_above_market_for_this_geo",
+                        "review bids/targeting for this geo; compare per-geo, not account mix",
+                        f"metric=ecpi; vs benchmarks_2025h2 [{vertical}/{sub}/{os_}/{geo}]",
+                        _sev(over / tol, bands))
 
     # ---- Cross-source reconciliation ----
     if "reconciliation" in scenarios:
@@ -264,17 +361,36 @@ def main(argv=None):
     ap.add_argument("--playbooks", help="Path to anomaly_playbooks.md for thresholds")
     ap.add_argument("--scenarios", default="data_quality,ua_performance,reconciliation,fraud",
                     help="Comma-separated scenarios to run")
+    ap.add_argument("--benchmarks", help="benchmarks_2025h2.json (default: references/)")
+    ap.add_argument("--app-verticals",
+                    help="App→vertical map for benchmark checks (§8.5): a JSON file "
+                         "or inline JSON like '{\"89King\": \"Gaming/Casino/android\"}'")
+    ap.add_argument("--default-vertical",
+                    help="Fallback 'Vertical/SubVertical[/os]' for unmapped apps")
     args = ap.parse_args(argv)
 
     if not args.playbooks:
         guess = os.path.join(os.path.dirname(__file__), "..", "references", "anomaly_playbooks.md")
         args.playbooks = guess if os.path.exists(guess) else None
+    if not args.benchmarks:
+        guess = os.path.join(os.path.dirname(__file__), "..", "references", "benchmarks_2025h2.json")
+        args.benchmarks = guess if os.path.exists(guess) else None
+    app_verticals = {}
+    if args.app_verticals:
+        if os.path.exists(args.app_verticals):
+            with open(args.app_verticals, "r", encoding="utf-8") as f:
+                app_verticals = json.load(f)
+        else:
+            app_verticals = json.loads(args.app_verticals)
 
     with open(args.data, "r", encoding="utf-8") as f:
         data = json.load(f)
     th, bands = load_thresholds(args.playbooks)
     scenarios = {s.strip() for s in args.scenarios.split(",") if s.strip()}
-    anomalies = detect(data, scenarios, th, bands)
+    anomalies = detect(data, scenarios, th, bands,
+                       bmk=load_benchmarks(args.benchmarks),
+                       app_verticals=app_verticals,
+                       default_vertical=args.default_vertical)
 
     out = json.dumps({"thresholds": th, "anomalies": anomalies},
                      ensure_ascii=False, indent=2)
