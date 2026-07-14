@@ -164,6 +164,13 @@ Trends, Cross-dimension breakdown (with drill-down), Retention & LTV curves, Dat
 Validation, UA Recommendations, Appendix. Every chart and every anomaly needs a
 one-sentence plain-language "what this means" read.
 
+When the app's vertical is known, put the numbers in industry context
+(`references/benchmarks_2025h2.json`): add the benchmark median as a **dashed
+reference curve** in the retention chart (`"dashed": true`), a `"benchmark"`
+line on retention/eCPI KPI cards, and a colored "vs benchmark" delta column in
+the breakdown table (cell = `{"v": "-43%", "status": "bad"}`). Label the exact
+cell used (sub-vertical/geo/OS); omit all of it when no benchmark cell exists.
+
 ### Step 6 — Deliver
 
 Give a 3–5 bullet summary in chat, then hand over the dashboard file (use
