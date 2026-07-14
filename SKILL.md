@@ -151,7 +151,13 @@ playbooks in `references/anomaly_playbooks.md`. The four scenarios:
 Each anomaly carries a uniform structure: **severity | metric | affected slice |
 change magnitude | baseline | hypothesized cause | recommended action | traceable
 query.** Then think like an analyst (§9.5): who's growing, who's a drag, and the
-causal story linking the metrics — not just a list of numbers. Use
+causal story linking the metrics — not just a list of numbers.
+
+**Evidence-bound verdicts (hard rule):** never say a number is 好/差/healthy/poor
+by itself. Every judgment — in the dashboard AND the chat summary — states the
+observed value, the exact comparison object (benchmark cell or own-history
+window), and the gap, so the reader can re-derive the verdict. Templates in
+`references/report_copy.md`; rule 6-9 in `references/decision_framework.md`. Use
 `references/decision_framework.md` to turn findings into decisions: route each
 anomaly through its playbook rule (cite rule IDs like `3B-3`, `3D-4` in the
 action), walk the causal chain (§4-4) left→right to find the first broken link,

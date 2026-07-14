@@ -254,9 +254,13 @@ model at intake; it selects the column.
 | 6-6 | **Benchmark humility** | Median anchor; between median and mean = watch; missing cell = skip (2-2); snapshot not SLA (2-3) |
 | 6-7 | **Trust gate** | Reconciliation/fraud findings freeze downstream decisions on that slice (1-1) |
 | 6-8 | **Units** | ROAS/ROI arrive as API decimals — display %, note the conversion |
+| 6-9 | **Evidence-bound verdicts** | Never emit a bare verdict ("差" / "poor" / "healthy"). Every judgment carries three parts: **observed value + comparison object (exact benchmark cell or own-history window) + gap magnitude**. Wrong: "89King 留存差". Right: "89King D1 1.7%,对 Casino/Vietnam/android 基准中位 12%,缺口 −86%"。 A verdict the reader cannot re-derive from the stated numbers is an opinion, not analysis |
 
 ## Part 7 · Wiring into the skill's output
 
+- **Every verdict, everywhere (6-9):** KPI notes, anomaly reads, takeaways,
+  chat summaries — all follow *value + comparison object + gap*. If a sentence
+  says good/bad/normal without numbers the reader can check, rewrite it.
 - **Executive Summary:** order takeaways by the Part 0 ladder (volume → quality
   → economics → trust); health score reflects the worst *gated* lens, not an
   average.

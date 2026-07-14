@@ -23,6 +23,24 @@ conversation language.
 - **中文:** `这说明:{plain_language_read}。`
 - **EN:** `What this means: {plain_language_read}.`
 
+## Verdict template (mandatory — decision_framework rule 6-9)
+
+Never state a bare verdict ("差 / 好 / 正常 / poor / healthy"). Every judgment
+is **value + comparison object + gap**, so the reader can re-derive it:
+
+- **中文:** `{metric} = {value},对比 {comparison_object}({reference_value}),缺口 {gap}{,判定 {verdict}}。`
+- **EN:** `{metric} = {value} vs {comparison_object} ({reference_value}), gap {gap}{, verdict: {verdict}}.`
+
+`comparison_object` must be exact: a benchmark cell (`Casino/Vietnam/android
+median`, Adjust'25Q4) or an own-history window (`前 4 周均值` / `trailing 4-week
+mean`). Examples:
+
+| ✗ 不合格 | ✓ 合格 |
+|---|---|
+| 89King 留存差 | 89King D1 1.7%,对 Casino/Vietnam/android 基准中位 12%,缺口 −86% |
+| eCPI 偏高 | eCPI $0.30,对 Puzzle/Vietnam/android 基准中位 $0.08,+275% |
+| Retention is fine | D1 9.1% vs Casino/Vietnam/android median 12%, −24% — within the 30% tolerance |
+
 ## Cause-hypothesis snippets
 
 | situation | 中文 | English |
