@@ -36,8 +36,9 @@ env/
 *~
 .DS_Store
 
-# Output files (dashboards, reports)
-dashboard_*.html
+# Output files (dashboards, reports) — root-level outputs only;
+# must NOT match assets/dashboard_template.html (the core template)
+/dashboard_*.html
 output_*.json
 *.xlsx
 *.csv

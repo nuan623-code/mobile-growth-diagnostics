@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Growth Diagnostics</title>
+<style>
+:root{
+  --bg:#FFFFFF;--card:#F7F8FA;--line:#E6E8EC;--text:#1F2430;--text-2:#5B6472;
+  --brand:#3B82F6;--good:#10B981;--warn:#F59E0B;--bad:#EF4444;--radius:12px;
+  --shadow:0 1px 2px rgba(31,36,48,.04),0 2px 8px rgba(31,36,48,.04);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Source Han Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.5;font-size:14px}
+a{color:var(--brand);text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:8px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--text-2);font-size:13px}
+.muted{color:var(--text-2)}
+section{margin-top:30px}
+section>h2{font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+section>h2 .hint{font-weight:400;font-size:12px;color:var(--text-2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.kpi .label{color:var(--text-2);font-size:12px}
+.kpi .val{font-size:22px;font-weight:650;margin:2px 0 4px}
+.kpi .delta{font-size:12px;font-weight:600}
+.kpi .note{font-size:11px;color:var(--text-2);margin-top:6px}
+.up{color:var(--good)}.down{color:var(--bad)}.flat{color:var(--text-2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.b-high{background:#FEE2E2;color:#B91C1C}
+.b-medium{background:#FEF3C7;color:#B45309}
+.b-low{background:#E0F2FE;color:#0369A1}
+.b-good{background:#D1FAE5;color:#047857}
+.health{display:flex;align-items:center;gap:16px}
+.ring{width:84px;height:84px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center}
+.ring .inner{width:64px;height:64px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:700;font-size:20px}
+ul.clean{margin:6px 0 0;padding-left:18px}ul.clean li{margin:3px 0}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.anom{border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:10px;overflow:hidden}
+.anom .head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer}
+.anom .head .metric{font-weight:600}
+.anom .head .slice{color:var(--text-2);font-size:12px}
+.anom .head .chev{margin-left:auto;color:var(--text-2);transition:transform .15s}
+.anom.open .chev{transform:rotate(90deg)}
+.anom .body{padding:0 14px 14px;border-top:1px solid var(--line)}     /* visible by default (no-JS safe) */
+.anom.collapsed .body{display:none}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:4px 10px;font-size:13px;margin-top:10px}
+.kv .k{color:var(--text-2)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer;color:var(--text-2)}
+.chip.active{background:var(--brand);border-color:var(--brand);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--text-2);font-weight:600;font-size:12px}
+tr.parent{cursor:pointer}
+tr.parent .key::before{content:"▾ ";color:var(--text-2)}
+tr.parent.closed .key::before{content:"▸ "}
+tr.child td:first-child{padding-left:26px;color:var(--text-2)}
+tr.child.hide{display:none}
+.chartwrap{width:100%;overflow-x:auto}
+svg.chart{display:block;max-width:100%;height:auto}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.rec{background:#fff;border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.rec .meta{font-size:11px;color:var(--text-2);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.whatmeans{font-size:12px;color:var(--text-2);margin-top:8px;padding:8px 10px;background:#fff;border:1px dashed var(--line);border-radius:8px}
+details.trace summary{cursor:pointer;color:var(--brand);font-size:12px;margin-top:8px}
+details.trace code{display:block;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:6px;font-size:12px;white-space:pre-wrap}
+.tools{display:flex;gap:8px}
+button.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--text)}
+nav.tabs{position:sticky;top:0;z-index:10;display:flex;gap:6px;margin:18px 0 2px;padding:8px 0;background:var(--bg);border-bottom:1px solid var(--line)}
+nav.tabs a{display:inline-block;padding:7px 16px;border-radius:999px;font-size:13px;font-weight:600;color:var(--text-2);border:1px solid transparent}
+nav.tabs a.active{background:var(--brand);color:#fff}
+nav.tabs a:not(.active):hover{border-color:var(--line);background:var(--card)}
+.funnel .stage{display:grid;grid-template-columns:150px 1fr 110px;gap:10px;align-items:center;margin:8px 0}
+.funnel .flabel{font-size:13px;text-align:right;color:var(--text-2)}
+.funnel .fbarwrap{display:flex;align-items:center;gap:8px}
+.funnel .fbar{height:22px;background:var(--brand);border-radius:4px;min-width:2px}
+.funnel .fval{font-size:12px;font-weight:600;white-space:nowrap}
+.funnel .frate{font-size:12px;color:var(--text-2);white-space:nowrap}
+.appendix dt{font-weight:600;margin-top:8px}
+footer{margin-top:40px;color:var(--text-2);font-size:12px;text-align:center}
+@media(max-width:760px){.cols-2,.cols-3{grid-template-columns:1fr}}
+@media print{.chip,button.btn,nav.tabs{display:none}.anom.collapsed .body{display:block}tr.child.hide{display:table-row}section[data-group]{display:block!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<!--__CONTENT__-->
+</div>
+<script>
+/* Progressive enhancement only. The page is fully rendered as static HTML, so
+   it shows everything even if this script never runs (sandbox/CSP/offline). */
+(function(){
+  try{
+    // Print button
+    var pb=document.getElementById("btn-export");
+    if(pb) pb.addEventListener("click",function(){window.print();});
+
+    // Anomalies: collapse all on load, toggle on click.
+    document.querySelectorAll(".anom").forEach(function(a){
+      a.classList.add("collapsed");
+      var h=a.querySelector(".head");
+      if(h) h.addEventListener("click",function(){a.classList.toggle("collapsed");});
+    });
+
+    // Anomaly filters (severity + scenario chips).
+    var center=document.getElementById("anom-center");
+    if(center){
+      var state={sev:"all",scn:"all"};
+      function apply(){
+        center.querySelectorAll(".anom").forEach(function(n){
+          var okS=state.sev==="all"||n.getAttribute("data-sev")===state.sev;
+          var okC=state.scn==="all"||n.getAttribute("data-scn")===state.scn;
+          n.style.display=(okS&&okC)?"":"none";
+        });
+      }
+      center.querySelectorAll(".chip").forEach(function(c){
+        c.addEventListener("click",function(){
+          var grp=c.getAttribute("data-group"), val=c.getAttribute("data-val");
+          state[grp]=val;
+          center.querySelectorAll('.chip[data-group="'+grp+'"]').forEach(function(x){x.classList.remove("active");});
+          c.classList.add("active");
+          apply();
+        });
+      });
+    }
+
+    // Panel tabs: with JS, show one group at a time (default = first tab).
+    // Without JS, the nav is plain anchors and every section stays visible.
+    var tabs=document.querySelectorAll("nav.tabs a[data-tab]");
+    if(tabs.length){
+      var show=function(g){
+        document.querySelectorAll("section[data-group]").forEach(function(s){
+          s.style.display=(s.getAttribute("data-group")===g)?"":"none";
+        });
+        tabs.forEach(function(t){t.classList.toggle("active",t.getAttribute("data-tab")===g);});
+      };
+      tabs.forEach(function(t){
+        t.addEventListener("click",function(e){e.preventDefault();show(t.getAttribute("data-tab"));});
+      });
+      show(tabs[0].getAttribute("data-tab"));
+    }
+
+    // Breakdown drill-down: collapse children on load, toggle per parent.
+    document.querySelectorAll("tr.parent").forEach(function(p){
+      var id=p.getAttribute("data-key");
+      var kids=document.querySelectorAll('tr.child[data-parent="'+id+'"]');
+      p.classList.add("closed"); kids.forEach(function(k){k.classList.add("hide");});
+      p.addEventListener("click",function(){
+        var closed=p.classList.toggle("closed");
+        kids.forEach(function(k){k.classList.toggle("hide",closed);});
+      });
+    });
+  }catch(e){/* enhancement is optional; static content already shows */}
+})();
+</script>
+</body>
+</html>
