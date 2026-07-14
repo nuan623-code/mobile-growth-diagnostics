@@ -246,3 +246,11 @@ perform write operations against Adjust or any ad network.
 `examples/sample_dashboard.html` is a mock-data preview so the user can see the
 look, theme, modules, and interactions **before** connecting real data. Show it
 first when the user wants to know what the output looks like.
+
+`examples/benchmark_demo_dashboard.html` is a real pipeline run (test account,
+VN casino apps) demonstrating the judgment layer: benchmark-relative anomalies
+with exact cells (`1.7% vs Casino/Vietnam/android median 12%`), dashed benchmark
+curves in the retention chart, colored "vs benchmark" breakdown cells, an
+unmapped app degrading honestly to "—", and recommendations citing
+decision-framework rule IDs (3A-6, 3D-1/3D-2, 1-1). Show it when the user asks
+what the benchmark/decision layer adds.
