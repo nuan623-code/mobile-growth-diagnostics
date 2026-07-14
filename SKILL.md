@@ -151,7 +151,12 @@ playbooks in `references/anomaly_playbooks.md`. The four scenarios:
 Each anomaly carries a uniform structure: **severity | metric | affected slice |
 change magnitude | baseline | hypothesized cause | recommended action | traceable
 query.** Then think like an analyst (§9.5): who's growing, who's a drag, and the
-causal story linking the metrics — not just a list of numbers.
+causal story linking the metrics — not just a list of numbers. Use
+`references/decision_framework.md` to turn findings into decisions: route each
+anomaly through its playbook rule (cite rule IDs like `3B-3`, `3D-4` in the
+action), walk the causal chain (§4-4) left→right to find the first broken link,
+and respect the guardrails (§6: volume floor, cohort maturity, mix
+decomposition) before recommending any budget move.
 
 ### Step 5 — Build the explainable HTML dashboard
 
@@ -170,6 +175,11 @@ reference curve** in the retention chart (`"dashed": true`), a `"benchmark"`
 line on retention/eCPI KPI cards, and a colored "vs benchmark" delta column in
 the breakdown table (cell = `{"v": "-43%", "status": "bad"}`). Label the exact
 cell used (sub-vertical/geo/OS); omit all of it when no benchmark cell exists.
+
+Recommendations follow `references/decision_framework.md`: order the Executive
+Summary by the reading ladder (volume → quality → economics → trust), and give
+every recommendation a `basis` that cites a rule ID with evidence (e.g.
+`"3B-3: VN×NetworkX eCPI $0.02 but D7 1.1% → CPRU $1.8, 4× geo median"`).
 
 ### Step 6 — Deliver
 
@@ -211,6 +221,12 @@ perform write operations against Adjust or any ad network.
   geo × OS, mean+median (**median is the anchor**). Used by the §8.5
   benchmark-relative checks and for "vs benchmark" context in the dashboard.
   Directional, not SLAs; missing cells are skipped, never invented.
+- `references/decision_framework.md` — the judgment layer: reading ladder,
+  four-lens metric map, **metric→decision playbooks with citable rule IDs**
+  (budget 3A / geo×network 3B / creative-bid 3C / retention-product 3D),
+  combined-read 2×2s, monetization-mode north stars, guardrails. Read in
+  Steps 4–5 when writing insights, anomaly actions, and recommendations;
+  cite rule IDs in `recommendations[].basis`.
 - `references/mcp_setup.md` — Adjust MCP connection, token assistant, client-config
   JSON template, `X-Account-ID`; read in Step 1 when the MCP isn't connected.
 - `references/report_copy.md` — bilingual (中/EN) copy templates for summaries,
