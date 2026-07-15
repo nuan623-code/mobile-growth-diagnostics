@@ -29,6 +29,10 @@ insights.json schema (all optional; provide as much as you can):
                 "rows":[{"key","values":{},"children":[{"key","values":{}}]}],"note"},
       # a cell value may also be {"v": "-87%", "status": "good|warn|bad"} —
       # rendered colored; use for "vs benchmark" delta columns.
+  "breakdowns": [{"title","primary_dim","child_dim","columns","rows","note","group"}],
+      # multiple breakdown tables, each its own section — use for the deep
+      # report's 分国家 / 分渠道 / 分平台 / ROI / 停留时长 / 分维度留存 tables.
+      # "title" names the section; "group" defaults to "analysis".
   "cohorts": {"periods":[...],"retention":[{"label","values":[...],"dashed":bool}],
               "ltv":[{"label","values":[...]}],"note"},
       # "dashed": true renders a gray dashed reference curve — use it for
@@ -330,14 +334,19 @@ def render(payload):
         cards = trend_cards(trends)
         sec(t["trends"], f'<div class="grid {"cols-2" if len(cards) > 1 else ""}">{"".join(cards)}</div>')
 
-    # ---- breakdown ----
-    b = I.get("breakdown")
-    if b and b.get("rows"):
+    # ---- breakdowns (one section per table: 全局→分国家→分渠道→分平台…) ----
+    # `breakdowns` is a list of tables; legacy single `breakdown` still works.
+    blist = list(I.get("breakdowns") or [])
+    if I.get("breakdown"):
+        blist.insert(0, I["breakdown"])
+    for bi, b in enumerate(blist):
+        if not b or not b.get("rows"):
+            continue
         cols = b.get("columns") or []
         head = f'<tr><th>{e(b.get("primary_dim"))}</th>' + "".join(f"<th>{e(c)}</th>" for c in cols) + "</tr>"
         body_rows = []
         for i, r in enumerate(b["rows"]):
-            key = f"p{i}"
+            key = f"b{bi}p{i}"
             body_rows.append(f'<tr class="parent" data-key="{key}"><td class="key">{e(r.get("key"))}</td>'
                              + "".join(f"<td>{fmt((r.get('values') or {}).get(c))}</td>" for c in cols) + "</tr>")
             for ch in (r.get("children") or []):
@@ -345,7 +354,9 @@ def render(payload):
                                  + "".join(f"<td>{fmt((ch.get('values') or {}).get(c))}</td>" for c in cols) + "</tr>")
         note = f'<div class="whatmeans">{t["whatmeans"]}: {e(b["note"])}</div>' if b.get("note") else ""
         hint = f'{e(b.get("primary_dim",""))}' + (f' × {e(b.get("child_dim"))}' if b.get("child_dim") else "")
-        sec(t["breakdown"], f'<div class="card"><table><thead>{head}</thead><tbody>{"".join(body_rows)}</tbody></table>{note}</div>', hint)
+        sec(b.get("title") or t["breakdown"],
+            f'<div class="card"><table><thead>{head}</thead><tbody>{"".join(body_rows)}</tbody></table>{note}</div>',
+            hint, group=b.get("group", "analysis"))
 
     # ---- cohorts ----
     c = I.get("cohorts")

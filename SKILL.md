@@ -134,6 +134,25 @@ registration → first purchase) when the slugs support one. If the app has no
 event tracking configured, skip the pull — the dashboard renders an honest
 empty state for the Events panel instead.
 
+**Deep-report pull plan (when the user asks for a full/detailed report):** the
+deliverable is the 8-block structure in Step 5. On top of the core set, pull:
+
+1. **全局** — account totals + daily trend (installs, sessions, cost, revenue).
+2. **分国家 / 分渠道 / 分平台** — the core set × each dimension **plus the
+   quality metrics per slice**: `retention_rate_1d/7d`, `ecpi`; platform uses
+   `os_name`. One well-shaped query per dimension.
+3. **ROI** — `cost`, `revenue`/`all_revenue`, `roas_7d/30d`,
+   `return_on_investment` by country × network; if the account has no
+   spend/revenue integration, the ROI block states 不可评估 (3A-6) — never
+   fabricate.
+4. **停留时长 (time in app)** — `time_spent_per_user_{0d,7d}`,
+   `sessions_per_user_{0d,7d}`, `sessions`, `daus` (session depth & length);
+   compare slices against each other and their own history (no industry
+   benchmark for these).
+5. **留存** — `retention_rate_1d/7d/30d` × (country, network, platform), vs
+   benchmark cells (§8.5).
+6. **事件** — per the event plan above.
+
 Remember the units quirk: **ROAS/ROI come back from the API as decimals** (e.g.
 `0.4`); display as percentages (`40%`) and note the conversion in tooltips.
 
@@ -182,8 +201,13 @@ organized as **three panels** (tabs with JS; stacked sections without):
 
 - **概览 Overview** — Executive Summary, KPI cards, UA Recommendations: a
   decision-maker should be done after this panel.
-- **数据分析 Deep Analysis** — Anomaly Center, Trends, Cross-dimension breakdown
-  (with drill-down), Retention & LTV curves, Data Validation, Appendix.
+- **数据分析 Deep Analysis** — Anomaly Center, Trends, then the **deep-report
+  blocks as separate `breakdowns` tables in this order**: 分国家 (by country) →
+  分渠道 (by network) → 分平台 (by platform) → ROI 分析 (by country×network, or
+  an explicit 不可评估 statement) → 停留时长 (time_spent_per_user /
+  sessions_per_user by slice) → 分维度留存 (retention × dimension vs benchmark)
+  — each table carries quality columns (retention, eCPI vs benchmark) and a
+  one-line verdict note; then Retention & LTV curves, Data Validation, Appendix.
 - **事件分析 Event Analysis** — event overview cards (events per install/DAU),
   key-event funnel, event volume ranking, event trends (`insights.events`
   schema in build_dashboard.py). No event data pulled → the panel renders an
